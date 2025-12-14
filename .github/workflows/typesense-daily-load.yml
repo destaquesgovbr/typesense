@@ -63,7 +63,7 @@ jobs:
         id: secrets
         run: |
           # Get API key from Secret Manager
-          TYPESENSE_API_KEY=$(gcloud secrets versions access latest --secret=typesense-api-key)
+          TYPESENSE_API_KEY=$(gcloud secrets versions access latest --secret=typesense-search-only-api-key --project=${{ env.PROJECT_ID }})
           echo "::add-mask::$TYPESENSE_API_KEY"
           echo "api_key=$TYPESENSE_API_KEY" >> $GITHUB_OUTPUT
 
