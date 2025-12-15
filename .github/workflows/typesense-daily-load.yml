@@ -15,7 +15,6 @@ on:
         type: number
 
 env:
-  PROJECT_ID: inspire-7-finep
   PYTHON_VERSION: '3.12'
 
 jobs:
@@ -31,14 +30,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Fetch Typesense Config
+        id: typesense
+        uses: destaquesgovbr/reusable-workflows/actions/fetch-typesense-config@v1
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -59,23 +56,11 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Get Typesense credentials from Secret Manager
-        id: secrets
-        run: |
-          # Get API key from Secret Manager
-          TYPESENSE_API_KEY=$(gcloud secrets versions access latest --secret=typesense-search-only-api-key --project=${{ env.PROJECT_ID }})
-          echo "::add-mask::$TYPESENSE_API_KEY"
-          echo "api_key=$TYPESENSE_API_KEY" >> $GITHUB_OUTPUT
-
-          # Get Typesense host (external IP from compute address)
-          TYPESENSE_HOST=$(gcloud compute addresses describe destaquesgovbr-typesense-ip --region=southamerica-east1 --format='value(address)')
-          echo "host=$TYPESENSE_HOST" >> $GITHUB_OUTPUT
-
       - name: Run incremental data load
         env:
-          TYPESENSE_HOST: ${{ steps.secrets.outputs.host }}
-          TYPESENSE_PORT: '8108'
-          TYPESENSE_API_KEY: ${{ steps.secrets.outputs.api_key }}
+          TYPESENSE_HOST: ${{ steps.typesense.outputs.host }}
+          TYPESENSE_PORT: ${{ steps.typesense.outputs.port }}
+          TYPESENSE_API_KEY: ${{ steps.typesense.outputs.api_key }}
         run: |
           DAYS=${{ github.event.inputs.days || '7' }}
           echo "Loading data from last $DAYS days..."
