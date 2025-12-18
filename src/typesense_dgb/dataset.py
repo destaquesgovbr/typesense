@@ -19,6 +19,7 @@ def download_and_process_dataset(
     mode: str = "full",
     days: int = 7,
     dataset_path: str = DATASET_PATH,
+    limit: int | None = None,
 ) -> pd.DataFrame:
     """
     Baixa o dataset do HuggingFace e converte para pandas DataFrame.
@@ -27,6 +28,7 @@ def download_and_process_dataset(
         mode: 'full' para dataset completo ou 'incremental' para dados recentes
         days: Número de dias para olhar para trás no modo incremental (default: 7)
         dataset_path: Caminho do dataset no HuggingFace
+        limit: Limita número de registros (útil para testes rápidos)
 
     Returns:
         DataFrame processado com colunas adicionais para indexação
@@ -41,6 +43,11 @@ def download_and_process_dataset(
 
         # Converte para pandas DataFrame
         df = dataset.to_pandas()
+
+        # Limita registros se especificado (útil para testes)
+        if limit is not None and limit > 0:
+            logger.info(f"Limitando a {limit} registros para teste...")
+            df = df.head(limit)
 
         # Converte published_at e extracted_at para datetime
         df["published_at"] = pd.to_datetime(df["published_at"], errors="coerce")

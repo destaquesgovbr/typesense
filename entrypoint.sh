@@ -3,9 +3,10 @@ set -e
 
 echo "Starting GovBR News Typesense server..."
 
-# Fetch API key from Secret Manager if not properly set
-if [ -z "$TYPESENSE_API_KEY" ] || [ "$TYPESENSE_API_KEY" = '${TYPESENSE_API_KEY}' ] || [ "$TYPESENSE_API_KEY" = 'govbrnews_api_key_change_in_production' ]; then
-    echo "Fetching API key from Secret Manager..."
+# Fetch API key from Secret Manager only if not set or if interpolation failed
+# If TYPESENSE_API_KEY is set (including the dev key), use it directly
+if [ -z "$TYPESENSE_API_KEY" ] || [ "$TYPESENSE_API_KEY" = '${TYPESENSE_API_KEY}' ]; then
+    echo "Fetching Typesense connection config from Secret Manager..."
 
     # Get access token from metadata service
     ACCESS_TOKEN=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
@@ -15,15 +16,18 @@ if [ -z "$TYPESENSE_API_KEY" ] || [ "$TYPESENSE_API_KEY" = '${TYPESENSE_API_KEY}
     PROJECT_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" \
         -H "Metadata-Flavor: Google")
 
-    # Fetch secret from Secret Manager
-    TYPESENSE_API_KEY=$(curl -s "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/typesense-api-key/versions/latest:access" \
+    # Fetch secret from Secret Manager (typesense-write-conn contains JSON with apiKey)
+    SECRET_JSON=$(curl -s "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/typesense-write-conn/versions/latest:access" \
         -H "Authorization: Bearer ${ACCESS_TOKEN}" | python3 -c "import sys,json,base64; print(base64.b64decode(json.load(sys.stdin)['payload']['data']).decode())")
+
+    # Extract apiKey from JSON (supports both new format 'apiKey' and old format 'searchOnlyApiKey')
+    TYPESENSE_API_KEY=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('apiKey') or d.get('searchOnlyApiKey', ''))")
 
     if [ -z "$TYPESENSE_API_KEY" ]; then
         echo "ERROR: Failed to fetch API key from Secret Manager"
         exit 1
     fi
-    echo "API key fetched successfully"
+    echo "API key fetched successfully from typesense-write-conn"
     # Export for subprocesses (Python scripts)
     export TYPESENSE_API_KEY
 fi
