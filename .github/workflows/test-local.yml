@@ -49,19 +49,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('typesense/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        working-directory: typesense
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
       - name: Test load with limited records
-        working-directory: typesense
         env:
           TYPESENSE_HOST: localhost
           TYPESENSE_PORT: 8108
@@ -71,7 +69,6 @@ jobs:
           python scripts/load_data.py --mode full --limit 100
 
       - name: Verify data loaded
-        working-directory: typesense
         env:
           TYPESENSE_HOST: localhost
           TYPESENSE_PORT: 8108
