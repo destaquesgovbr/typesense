@@ -36,6 +36,7 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          secret_name: typesense-write-conn
 
       - name: Set up Python
         uses: actions/setup-python@v5
