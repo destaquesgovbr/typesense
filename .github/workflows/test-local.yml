@@ -1,0 +1,83 @@
+name: Test Local Typesense Load
+
+on:
+  pull_request:
+    paths:
+      - 'typesense/**'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  test-local:
+    name: Test Typesense Load (Local)
+    runs-on: ubuntu-latest
+
+    services:
+      typesense:
+        image: typesense/typesense:27.1
+        ports:
+          - 8108:8108
+        env:
+          TYPESENSE_API_KEY: test_api_key
+          TYPESENSE_DATA_DIR: /data
+        options: >-
+          --health-cmd "curl -f http://localhost:8108/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('typesense/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: typesense
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Test load with limited records
+        working-directory: typesense
+        env:
+          TYPESENSE_HOST: localhost
+          TYPESENSE_PORT: 8108
+          TYPESENSE_API_KEY: test_api_key
+        run: |
+          echo "Loading 100 records for test..."
+          python scripts/load_data.py --mode full --limit 100
+
+      - name: Verify data loaded
+        working-directory: typesense
+        env:
+          TYPESENSE_HOST: localhost
+          TYPESENSE_PORT: 8108
+          TYPESENSE_API_KEY: test_api_key
+        run: |
+          echo "Verifying collection..."
+          python scripts/delete_collection.py --list
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Test completed successfully"
+          else
+            echo "Test failed"
+            exit 1
+          fi

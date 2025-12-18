@@ -82,6 +82,13 @@ Exemplos:
         help="Força modo full em coleções não vazias (use com cuidado!)",
     )
 
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Limita número de registros (útil para testes rápidos)",
+    )
+
     return parser.parse_args()
 
 
@@ -95,6 +102,8 @@ def main() -> None:
         logger.info(f"Modo: {args.mode}")
         if args.mode == "incremental":
             logger.info(f"Janela de tempo: Últimos {args.days} dias")
+        if args.limit:
+            logger.info(f"Limite de registros: {args.limit}")
         logger.info("=" * 80)
 
         # Aguarda Typesense ficar pronto
@@ -107,7 +116,7 @@ def main() -> None:
         create_collection(client)
 
         # Baixa e processa dataset
-        df = download_and_process_dataset(mode=args.mode, days=args.days)
+        df = download_and_process_dataset(mode=args.mode, days=args.days, limit=args.limit)
 
         # Indexa documentos
         index_documents(client, df, mode=args.mode, force=args.force)
