@@ -22,13 +22,21 @@ jobs:
         env:
           TYPESENSE_API_KEY: test_api_key
           TYPESENSE_DATA_DIR: /tmp
-        options: >-
-          --health-cmd "wget -q --spider http://localhost:8108/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
+      - name: Wait for Typesense to be ready
+        run: |
+          echo "Waiting for Typesense to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8108/health > /dev/null 2>&1; then
+              echo "Typesense is ready!"
+              break
+            fi
+            echo "Attempt $i/30: Typesense not ready yet..."
+            sleep 2
+          done
+          curl -s http://localhost:8108/health || exit 1
+
       - name: Checkout code
         uses: actions/checkout@v4
 
