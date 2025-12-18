@@ -23,7 +23,7 @@ jobs:
           TYPESENSE_API_KEY: test_api_key
           TYPESENSE_DATA_DIR: /tmp
         options: >-
-          --health-cmd "curl -f http://localhost:8108/health || exit 1"
+          --health-cmd "wget -q --spider http://localhost:8108/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
