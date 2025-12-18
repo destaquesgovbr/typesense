@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """
-CLI para criar uma API key scoped para busca no Typesense.
+CLI para gerenciar API keys do Typesense.
 
-Esta key só permite operações de busca (documents:search) e é segura
-para ser exposta no frontend ou compartilhada com desenvolvedores.
+Funcionalidades:
+- Criar scoped search-only key (para portal/devs)
+- Gerar nova admin key (para rotação de chaves)
+- Listar e deletar keys existentes
 
 Usage:
-    # Criar key com descrição padrão
+    # Criar scoped search-only key
     python scripts/create_search_key.py
 
-    # Criar key com descrição customizada
-    python scripts/create_search_key.py --description "Key para portal prod"
+    # Gerar nova admin key (para rotação)
+    python scripts/create_search_key.py --generate-admin
 
     # Listar keys existentes
     python scripts/create_search_key.py --list
@@ -22,6 +24,7 @@ Usage:
 import argparse
 import json
 import logging
+import secrets
 import sys
 
 from dotenv import load_dotenv
@@ -46,11 +49,11 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
-  # Criar key com descrição padrão
+  # Criar scoped search-only key
   python create_search_key.py
 
-  # Criar key com descrição customizada
-  python create_search_key.py --description "Key para portal prod"
+  # Gerar nova admin key (para rotação)
+  python create_search_key.py --generate-admin
 
   # Listar keys existentes
   python create_search_key.py --list
@@ -93,6 +96,12 @@ Exemplos:
         help="Saída em formato JSON (útil para automação)",
     )
 
+    parser.add_argument(
+        "--generate-admin",
+        action="store_true",
+        help="Gera uma nova admin key aleatória (para rotação de chaves)",
+    )
+
     return parser.parse_args()
 
 
@@ -132,6 +141,57 @@ def delete_key(client, key_id: int) -> None:
     except Exception as e:
         logger.error(f"Erro ao deletar key {key_id}: {e}")
         sys.exit(1)
+
+
+def generate_admin_key(json_output: bool = False) -> None:
+    """Gera uma nova admin key aleatória.
+
+    Esta key pode ser usada como bootstrap key do Typesense (--api-key).
+    A key atual deve ser mantida para read-only access.
+    """
+    # Gera uma key de 64 caracteres hexadecimais (256 bits)
+    new_key = secrets.token_hex(32)
+
+    if json_output:
+        print(json.dumps({"admin_key": new_key}))
+        return
+
+    logger.info("=" * 80)
+    logger.info("Nova Admin Key Gerada")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info(f"  Nova Admin Key: {new_key}")
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info("INSTRUÇÕES PARA ROTAÇÃO DE CHAVES:")
+    logger.info("")
+    logger.info("1. A chave ATUAL do Typesense será usada como READ-ONLY")
+    logger.info("   (para portal e desenvolvedores)")
+    logger.info("")
+    logger.info("2. Esta NOVA chave será a nova ADMIN key")
+    logger.info("   (para workflows de carga e VM)")
+    logger.info("")
+    logger.info("3. Atualize as secrets no GCP:")
+    logger.info("")
+    logger.info("   # typesense-read-conn (chave atual)")
+    logger.info('   gcloud secrets versions add typesense-read-conn --data-file=- <<EOF')
+    logger.info('   {"host":"34.39.186.38","port":8108,"protocol":"http","apiKey":"<CHAVE_ATUAL>"}')
+    logger.info('   EOF')
+    logger.info("")
+    logger.info("   # typesense-write-conn (nova chave)")
+    logger.info('   gcloud secrets versions add typesense-write-conn --data-file=- <<EOF')
+    logger.info(f'   {{"host":"34.39.186.38","port":8108,"protocol":"http","apiKey":"{new_key}"}}')
+    logger.info('   EOF')
+    logger.info("")
+    logger.info("4. Reinicie o Typesense com a nova --api-key:")
+    logger.info(f"   --api-key={new_key}")
+    logger.info("")
+    logger.info("IMPORTANTE: Após reiniciar o Typesense com a nova key,")
+    logger.info("a chave antiga só funcionará para LEITURA se você criar")
+    logger.info("uma scoped key antes da rotação.")
+    logger.info("")
+    logger.info("=" * 80)
 
 
 def create_search_key(
@@ -187,6 +247,11 @@ def main() -> None:
     """Main function."""
     try:
         args = parse_arguments()
+
+        # Gerar admin key não requer conexão com Typesense
+        if args.generate_admin:
+            generate_admin_key(args.json)
+            return
 
         client = get_client()
 
