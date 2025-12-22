@@ -34,8 +34,8 @@ jobs:
         id: typesense
         uses: destaquesgovbr/reusable-workflows/actions/fetch-typesense-config@v1
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
           secret_name: typesense-write-conn
 
       - name: Set up Python
