@@ -1,5 +1,7 @@
 # GovBR News Typesense Server
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 Este diretório contém os arquivos necessários para criar um servidor Typesense que automaticamente baixa e disponibiliza o dataset de notícias governamentais brasileiras do HuggingFace para busca rápida e eficiente.
 
 ## 🚀 Início Rápido
